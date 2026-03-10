@@ -81,31 +81,17 @@
     <!-- ── Brand list view (default) ────────────────────────────── -->
     <div id="mobile-brand-list-view">
 
-      <!-- ── Section 3: Brand + Size List ─────────────────────── -->
+      <!-- ── Section 3: Quick Action ──────────────────────────── -->
       <section class="m-section">
         <div class="m-section-header">
-          <h2>📋 Brand + Size List</h2>
+          <h2>📋 Stock Entry</h2>
           <span class="m-pill" id="m-filled-count">0 filled</span>
         </div>
-
-        <!-- Toggle button — collapsed by default -->
-        <button
-          type="button"
-          class="btn btn-secondary m-toggle-btn"
-          id="m-brand-toggle-btn"
-          onclick="toggleBrandList()"
-        >
-          Show brand list (<span id="m-brand-count">…</span>)
-        </button>
-
-        <!-- Collapsible panel -->
-        <div id="brand-list-panel" class="hidden">
-          <div class="m-search-wrap">
-            <input type="search" id="m-search" placeholder="🔍 Search brand…" oninput="filterBrands(this.value)" />
-          </div>
-          <div id="mobile-brand-cards" class="brand-list-panel">
-            <div class="empty-state"><div class="btn-spinner" style="width:36px;height:36px;border-width:3px;margin:0 auto 12px;"></div><p>Loading brands…</p></div>
-          </div>
+        <div class="m-search-wrap">
+          <input type="search" id="m-search" placeholder="🔍 Search brand…" oninput="filterBrands(this.value)" />
+        </div>
+        <div id="mobile-brand-cards" class="brand-list-panel">
+          <div class="empty-state"><div class="btn-spinner" style="width:36px;height:36px;border-width:3px;margin:0 auto 12px;"></div><p>Loading brands…</p></div>
         </div>
       </section>
 

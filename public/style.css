@@ -243,12 +243,12 @@ body::after {
 
 /* ── Brand list scrollable panel ───────────────────────────────────── */
 .brand-list-panel {
-  max-height: 280px;
+  max-height: 380px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-top: 2px;
+  margin-top: 8px;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -313,9 +313,9 @@ body::after {
 }
 .bottom-bar .btn {
   width: 100%;
-  height: 50px;
-  border-radius: 12px;
-  font-size: 15px;
+  height: 44px;
+  border-radius: 10px;
+  font-size: 14px;
   font-weight: 700;
 }
 @media (min-width: 768px) {
