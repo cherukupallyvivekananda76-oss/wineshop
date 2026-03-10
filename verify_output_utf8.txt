@@ -1,0 +1,13 @@
+﻿=== Sheet: Stock_2026-03-08 | Last row: 219 ===
+
+Row 200 | A:                                          | B:                                     | H:  | I: (formula: G200*H200)
+Row 201 | A:                                          | B:                                     | H:  | I: (formula: G201*H201)
+Row 202 | A:                                          | B:                                     | H: Total Sales | I: (formula: SUM(I2:I201))
+Row 204 | A: Expense Head                             | B: Amount                              | H:  | I: 
+Row 212 | A: Total Expenses                           | B: (formula: SUM(B205:B211))           | H:  | I: 
+Row 214 | A: Daily Cash Summary                       | B: ₹ Amount                            | H:  | I: 
+Row 215 | A: Total Sales (from stock)                 | B: (formula: I202)                     | H:  | I: 
+Row 216 | A: Total Expenses                           | B: (formula: B212)                     | H:  | I: 
+Row 217 | A: Net Cash (Sales − Expenses)              | B: (formula: B215-B216)                | H:  | I: 
+Row 218 | A: Cash Deposited in Bank                   | B:                                     | H:  | I: 
+Row 219 | A: Cash Remaining in Counter                | B: (formula: B217-B218)                | H:  | I: 

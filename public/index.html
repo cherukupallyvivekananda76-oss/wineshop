@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jai Durga Wine Shop – Daily Stock Manager</title>
+  <meta name="description" content="Generate and verify daily stock Excel sheets for Jai Durga Wine Shop." />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍷</text></svg>" />
+</head>
+<body>
+
+<div id="toast-container" role="alert" aria-live="polite"></div>
+
+<div class="page-wrap">
+
+  <!-- ══════════════════════════ HEADER ══════════════════════════════ -->
+  <header class="header">
+    <div class="header-badge">🍷 Jai Durga Wine Shop</div>
+    <h1>Daily Stock Manager</h1>
+    <p class="header-sub">Generate, fill, and verify daily stock sheets</p>
+  </header>
+
+  <!-- ══════════════════ MOBILE NAV (phones only) ════════════════════ -->
+  <nav class="mobile-nav" id="mobile-nav">
+    <button class="mobile-nav-btn active" id="mn-stock" onclick="mobileNavSwitch('stock')">
+      <span class="mn-icon">📊</span>
+      <span class="mn-label">Fill Today's Stock</span>
+    </button>
+    <button class="mobile-nav-btn" id="mn-verify" onclick="mobileNavSwitch('verify')">
+      <span class="mn-icon">🔍</span>
+      <span class="mn-label">Verify Two Days</span>
+    </button>
+  </nav>
+
+  <!-- ══════════════════ DESKTOP TAB BAR ════════════════════════════ -->
+  <nav class="tab-bar desktop-only" role="tablist">
+    <button class="tab-btn active" id="tab-page1" role="tab" aria-selected="true" aria-controls="page1" onclick="switchTab('page1')">
+      📊 Daily Sheet
+    </button>
+    <button class="tab-btn" id="tab-page2" role="tab" aria-selected="false" aria-controls="page2" onclick="switchTab('page2')">
+      🔍 Verify Two Days
+    </button>
+  </nav>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <!--  MOBILE VIEW: STOCK ENTRY                                      -->
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <div id="mobile-stock-view" class="mobile-only mobile-view active">
+
+    <!-- Date + generate bar -->
+    <div class="mobile-top-bar card">
+      <div class="mobile-top-row">
+        <div class="form-group" style="flex:1;">
+          <label for="m-date">📅 Date</label>
+          <input type="date" id="m-date" />
+        </div>
+        <button class="btn btn-primary m-gen-btn" id="m-generate-btn" onclick="mobileGenerate()">
+          ⬇️ Download
+        </button>
+      </div>
+      <label class="checkbox-row" for="m-preload" style="margin-top:12px;">
+        <input type="checkbox" id="m-preload" checked />
+        <div class="cb-text">
+          <div class="cb-label">Preload standard brand list</div>
+        </div>
+      </label>
+      <!-- Mobile Drive status -->
+      <div class="drive-widget drive-widget-mobile" id="m-drive-widget">
+        <div class="drive-not-connected" id="m-drive-disconnected">
+          <span class="drive-note" id="m-drive-note">Connect Drive to auto-save sheets online.</span>
+          <button class="drive-connect-btn" onclick="connectDrive()">🔗 Connect Google Drive</button>
+        </div>
+        <div class="drive-connected hidden" id="m-drive-connected">
+          <span class="drive-pill">✅ <span id="m-drive-folder">Wine Stock Sheets</span></span>
+          <button class="drive-disconnect-btn" onclick="disconnectDrive()">Disconnect</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Brand list view (default) -->
+    <div id="mobile-brand-list-view">
+      <div class="mobile-section-header">
+        <h2>Brand + Size List</h2>
+        <span class="mobile-filled-count" id="m-filled-count">0 filled</span>
+      </div>
+      <div class="mobile-search-wrap">
+        <input type="search" id="m-search" placeholder="🔍 Search brand…" oninput="filterBrands(this.value)" />
+      </div>
+      <div id="mobile-brand-cards" class="mobile-brand-cards">
+        <div class="empty-state"><div class="btn-spinner" style="width:36px;height:36px;border-width:3px;margin:0 auto 12px;"></div><p>Loading brands…</p></div>
+      </div>
+    </div>
+
+    <!-- Detail form view (opens on card tap) -->
+    <div id="mobile-detail-view" class="hidden">
+      <button class="mobile-back-btn" onclick="closeMobileDetail()">← Back to List</button>
+
+      <div class="card mobile-detail-card">
+        <div class="mobile-detail-brand" id="m-detail-brand">Brand Name</div>
+        <div class="mobile-detail-size" id="m-detail-size">Size</div>
+
+        <div class="mobile-field-group">
+          <label for="m-ob">O.B. Stock (Opening Balance)</label>
+          <input type="number" id="m-ob" min="0" placeholder="0" oninput="mobileRecalc()" />
+        </div>
+        <div class="mobile-field-group">
+          <label for="m-recv">Received</label>
+          <input type="number" id="m-recv" min="0" placeholder="0" oninput="mobileRecalc()" />
+        </div>
+        <div class="mobile-calc-box">
+          <span class="mobile-calc-label">Total <span class="mobile-calc-hint">= OB + Received</span></span>
+          <span class="mobile-calc-value" id="m-total">0</span>
+        </div>
+        <div class="mobile-field-group">
+          <label for="m-cb">C/B Stock (Closing Balance)</label>
+          <input type="number" id="m-cb" min="0" placeholder="0" oninput="mobileRecalc()" />
+        </div>
+        <div class="mobile-calc-box">
+          <span class="mobile-calc-label">Sales <span class="mobile-calc-hint">= Total − CB</span></span>
+          <span class="mobile-calc-value" id="m-sales">0</span>
+        </div>
+        <div class="mobile-field-group">
+          <label for="m-rate">Rate (₹ per bottle)</label>
+          <input type="number" id="m-rate" min="0" placeholder="0" oninput="mobileRecalc()" />
+        </div>
+        <div class="mobile-calc-box accent">
+          <span class="mobile-calc-label">Amount <span class="mobile-calc-hint">= Sales × Rate</span></span>
+          <span class="mobile-calc-value" id="m-amount">₹ 0</span>
+        </div>
+      </div>
+
+      <div class="mobile-detail-actions">
+        <button class="btn btn-secondary" onclick="mobileSave()">💾 Save</button>
+        <button class="btn btn-primary" onclick="mobileSaveNext()">💾 Save &amp; Next →</button>
+      </div>
+    </div>
+
+  </div><!-- /mobile-stock-view -->
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <!--  MOBILE VIEW: VERIFY TWO DAYS                                  -->
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <div id="mobile-verify-view" class="mobile-only mobile-view hidden">
+
+    <!-- Upload form -->
+    <div class="card" id="m-verify-form-card">
+      <div class="card-header">
+        <div class="card-icon">🔍</div>
+        <div>
+          <div class="card-title">Verify Two Days</div>
+          <div class="card-subtitle">Checks yesterday's C/B vs today's O.B. for every brand</div>
+        </div>
+      </div>
+
+      <div class="mobile-field-group">
+        <label for="m-y-date">📅 Yesterday's Date</label>
+        <input type="date" id="m-y-date" />
+      </div>
+      <div class="mobile-field-group">
+        <label for="m-y-file">📄 Yesterday's Excel</label>
+        <label class="upload-zone upload-zone-sm" id="m-y-zone" for="m-y-file">
+          <input type="file" id="m-y-file" accept=".xlsx" />
+          <div class="upload-icon" style="font-size:22px;">📂</div>
+          <strong id="m-y-label">Tap to select file</strong>
+        </label>
+      </div>
+      <div class="mobile-field-group">
+        <label for="m-t-date">📅 Today's Date</label>
+        <input type="date" id="m-t-date" />
+      </div>
+      <div class="mobile-field-group">
+        <label for="m-t-file">📄 Today's Excel</label>
+        <label class="upload-zone upload-zone-sm" id="m-t-zone" for="m-t-file">
+          <input type="file" id="m-t-file" accept=".xlsx" />
+          <div class="upload-icon" style="font-size:22px;">📂</div>
+          <strong id="m-t-label">Tap to select file</strong>
+        </label>
+      </div>
+
+      <button class="btn btn-verify" id="m-verify-btn" disabled onclick="mobileRunVerify()">
+        🔍 Run Verification
+      </button>
+    </div>
+
+    <!-- Results -->
+    <div id="mobile-verify-results"></div>
+
+  </div><!-- /mobile-verify-view -->
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <!--  DESKTOP PAGE 1                                                -->
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <div id="page1" class="tab-page active desktop-only">
+
+    <div class="card" id="generate-card">
+      <div class="card-header">
+        <div class="card-icon">📊</div>
+        <div>
+          <div class="card-title">Generate Daily Excel Sheet</div>
+          <div class="card-subtitle">Creates a ready-to-fill .xlsx with Total, Sales &amp; Amount formulas</div>
+        </div>
+      </div>
+      <form id="generate-form" novalidate>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="date">📅 Date</label>
+            <input type="date" id="date" name="date" required />
+          </div>
+          <div class="form-group">
+            <label for="rows">🔢 Number of Rows</label>
+            <input type="number" id="rows" name="rows" min="1" max="2000" value="200" />
+          </div>
+        </div>
+        <div class="form-grid" style="margin-bottom:24px">
+          <div class="form-group full">
+            <label class="checkbox-row" for="preload-brands">
+              <input type="checkbox" id="preload-brands" name="preloadBrands" checked />
+              <div class="cb-text">
+                <div class="cb-label">📋 Preload Standard Brand List</div>
+                <div class="cb-desc">Pre-fills Brand Name &amp; Size columns</div>
+              </div>
+            </label>
+          </div>
+        </div>
+        <!-- Drive status widget -->
+        <div class="drive-widget" id="drive-widget" style="margin-bottom:16px;">
+          <div class="drive-not-connected" id="drive-disconnected">
+            <span class="drive-note" id="drive-note">Connect Google Drive to auto-save your sheets online.</span>
+            <button class="drive-connect-btn" onclick="connectDrive()">🔗 Connect Google Drive</button>
+          </div>
+          <div class="drive-connected hidden" id="drive-connected">
+            <span class="drive-pill">✅ Connected to Google Drive — sheets will save automatically</span>
+            <button class="drive-disconnect-btn" onclick="disconnectDrive()">Disconnect</button>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" id="generate-btn">
+          <span class="btn-label">⬇️ Generate &amp; Download Excel</span>
+        </button>
+      </form>
+    </div>
+
+    <div class="card" style="padding:20px 28px;">
+      <div class="card-header" style="margin-bottom:14px;padding-bottom:14px;">
+        <div class="card-icon" style="width:36px;height:36px;font-size:16px;">📐</div>
+        <div>
+          <div class="card-title" style="font-size:15px;">Auto-Formula Reference</div>
+          <div class="card-subtitle">Baked into every generated sheet</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
+        <div class="formula-chip"><div class="formula-col">Column E</div><div class="formula-expr" style="color:#7c3aed;">Total = O.B.Stock + Received</div><div class="formula-raw">= C + D</div></div>
+        <div class="formula-chip"><div class="formula-col">Column G</div><div class="formula-expr" style="color:#2563eb;">Sales = Total − C/B Stock</div><div class="formula-raw">= E − F</div></div>
+        <div class="formula-chip"><div class="formula-col">Column I</div><div class="formula-expr" style="color:#f59e0b;">Amount = Sales × Rate</div><div class="formula-raw">= G × H</div></div>
+      </div>
+    </div>
+
+  </div><!-- /page1 -->
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <!--  DESKTOP PAGE 2                                                -->
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <div id="page2" class="tab-page desktop-only">
+
+    <div class="card verify-intro-card">
+      <div class="card-header">
+        <div class="card-icon">🔍</div>
+        <div>
+          <div class="card-title">AI Accountant – Verify Two Days</div>
+          <div class="card-subtitle">Compares yesterday's C/B Stock with today's O.B. Stock</div>
+        </div>
+      </div>
+      <div class="verify-rule-box">
+        <div class="verify-rule"><span class="rule-dot ok"></span><strong>OK</strong> – Yesterday's C/B = Today's O.B. ✅</div>
+        <div class="verify-rule"><span class="rule-dot mis"></span><strong>MISMATCH</strong> – Values differ → highlighted red 🔴</div>
+        <div class="verify-rule"><span class="rule-dot warn"></span><strong>WARNING</strong> – Brand+Size not in yesterday's file 🟡</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">📁</div>
+        <div>
+          <div class="card-title">Upload Both Day Sheets</div>
+          <div class="card-subtitle">Use only sheets generated by this app</div>
+        </div>
+      </div>
+      <form id="verify-form" novalidate>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="yesterday-date">📅 Yesterday's Date</label>
+            <input type="date" id="yesterday-date" name="yesterday_date" />
+          </div>
+          <div class="form-group">
+            <label for="today-date-v">📅 Today's Date</label>
+            <input type="date" id="today-date-v" name="today_date" />
+          </div>
+        </div>
+        <div class="form-grid" style="margin-bottom:24px;">
+          <div class="form-group">
+            <label for="yesterday-file">📄 Yesterday's Excel (.xlsx)</label>
+            <label class="upload-zone upload-zone-sm" id="yesterday-zone" for="yesterday-file">
+              <input type="file" id="yesterday-file" name="yesterday_file" accept=".xlsx" required />
+              <div class="upload-icon" style="font-size:24px;">📂</div>
+              <strong id="yesterday-label">Click to select file</strong>
+              <p>Yesterday's stock sheet</p>
+            </label>
+          </div>
+          <div class="form-group">
+            <label for="today-file">📄 Today's Excel (.xlsx)</label>
+            <label class="upload-zone upload-zone-sm" id="today-zone" for="today-file">
+              <input type="file" id="today-file" name="today_file" accept=".xlsx" required />
+              <div class="upload-icon" style="font-size:24px;">📂</div>
+              <strong id="today-label">Click to select file</strong>
+              <p>Today's stock sheet</p>
+            </label>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-verify" id="verify-btn" disabled>
+          <span class="btn-label">🔍 Run Verification</span>
+        </button>
+      </form>
+    </div>
+
+    <div id="verify-results" aria-live="polite">
+      <div class="empty-state">
+        <div class="empty-icon">🧾</div>
+        <p>Upload both files and click "Run Verification" to see results</p>
+      </div>
+    </div>
+
+  </div><!-- /page2 -->
+
+</div><!-- /page-wrap -->
+
+<footer>
+  <p>🍷 Jai Durga Wine Shop &nbsp;·&nbsp; Daily Stock Excel Manager</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
