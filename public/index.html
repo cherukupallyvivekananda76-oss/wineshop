@@ -18,20 +18,19 @@
   <header class="header">
     <div class="header-badge">🍷 Jai Durga Wine Shop</div>
     <h1>Daily Stock Manager</h1>
-    <p class="header-sub">Generate, fill, and verify daily stock sheets</p>
+    <p class="header-sub mobile-only">Generate &amp; verify stock sheets</p>
+    <p class="header-sub desktop-only">Generate, fill, and verify daily stock sheets</p>
   </header>
 
-  <!-- ══════════════════ MOBILE NAV (phones only) ════════════════════ -->
-  <nav class="mobile-nav" id="mobile-nav">
-    <button class="mobile-nav-btn active" id="mn-stock" onclick="mobileNavSwitch('stock')">
-      <span class="mn-icon">📊</span>
-      <span class="mn-label">Fill Today's Stock</span>
+  <!-- ══════════════════ MOBILE MODE TOGGLE (phones only) ═══════════ -->
+  <div class="mode-toggle mobile-only" id="mobile-mode-toggle">
+    <button class="mode-btn active" id="mn-stock" onclick="mobileNavSwitch('stock')">
+      📊 Fill Today
     </button>
-    <button class="mobile-nav-btn" id="mn-verify" onclick="mobileNavSwitch('verify')">
-      <span class="mn-icon">🔍</span>
-      <span class="mn-label">Verify Two Days</span>
+    <button class="mode-btn" id="mn-verify" onclick="mobileNavSwitch('verify')">
+      🔍 Verify Days
     </button>
-  </nav>
+  </div>
 
   <!-- ══════════════════ DESKTOP TAB BAR ════════════════════════════ -->
   <nav class="tab-bar desktop-only" role="tablist">
@@ -48,49 +47,69 @@
   <!-- ══════════════════════════════════════════════════════════════ -->
   <div id="mobile-stock-view" class="mobile-only mobile-view active">
 
-    <!-- Date + generate bar -->
-    <div class="mobile-top-bar card">
-      <div class="mobile-top-row">
-        <div class="form-group" style="flex:1;">
-          <label for="m-date">📅 Date</label>
-          <input type="date" id="m-date" />
-        </div>
-        <button class="btn btn-primary m-gen-btn" id="m-generate-btn" onclick="mobileGenerate()">
-          ⬇️ Download
-        </button>
+    <!-- ── Section 1: Date ──────────────────────────────────────── -->
+    <section class="m-section">
+      <div class="m-section-header">
+        <h2>📅 Today's Date</h2>
       </div>
-      <label class="checkbox-row" for="m-preload" style="margin-top:12px;">
+      <div class="form-group">
+        <input type="date" id="m-date" />
+      </div>
+      <label class="checkbox-row" for="m-preload" style="margin-top:10px;">
         <input type="checkbox" id="m-preload" checked />
         <div class="cb-text">
           <div class="cb-label">Preload standard brand list</div>
         </div>
       </label>
-      <!-- Mobile Drive status -->
-      <div class="drive-widget drive-widget-mobile" id="m-drive-widget">
-        <div class="drive-not-connected" id="m-drive-disconnected">
-          <span class="drive-note" id="m-drive-note">Connect Drive to auto-save sheets online.</span>
-          <button class="drive-connect-btn" onclick="connectDrive()">🔗 Connect Google Drive</button>
-        </div>
-        <div class="drive-connected hidden" id="m-drive-connected">
-          <span class="drive-pill">✅ <span id="m-drive-folder">Wine Stock Sheets</span></span>
-          <button class="drive-disconnect-btn" onclick="disconnectDrive()">Disconnect</button>
-        </div>
-      </div>
-    </div>
+    </section>
 
-    <!-- Brand list view (default) -->
+    <!-- ── Section 2: Google Drive ──────────────────────────────── -->
+    <section class="m-section">
+      <div class="m-section-header">
+        <h2>☁️ Google Drive</h2>
+      </div>
+      <div id="m-drive-disconnected">
+        <p class="m-drive-note">Connect Drive to auto-save sheets online.</p>
+        <button class="btn btn-drive-connect" onclick="connectDrive()">🔗 Connect Google Drive</button>
+      </div>
+      <div class="hidden" id="m-drive-connected" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span class="drive-pill">✅ <span id="m-drive-folder">Wine Stock Sheets</span></span>
+        <button class="drive-disconnect-btn" onclick="disconnectDrive()">Disconnect</button>
+      </div>
+    </section>
+
+    <!-- ── Brand list view (default) ────────────────────────────── -->
     <div id="mobile-brand-list-view">
-      <div class="mobile-section-header">
-        <h2>Brand + Size List</h2>
-        <span class="mobile-filled-count" id="m-filled-count">0 filled</span>
-      </div>
-      <div class="mobile-search-wrap">
-        <input type="search" id="m-search" placeholder="🔍 Search brand…" oninput="filterBrands(this.value)" />
-      </div>
-      <div id="mobile-brand-cards" class="mobile-brand-cards">
-        <div class="empty-state"><div class="btn-spinner" style="width:36px;height:36px;border-width:3px;margin:0 auto 12px;"></div><p>Loading brands…</p></div>
-      </div>
-    </div>
+
+      <!-- ── Section 3: Brand + Size List ─────────────────────── -->
+      <section class="m-section">
+        <div class="m-section-header">
+          <h2>📋 Brand + Size List</h2>
+          <span class="m-pill" id="m-filled-count">0 filled</span>
+        </div>
+
+        <!-- Toggle button — collapsed by default -->
+        <button
+          type="button"
+          class="btn btn-secondary m-toggle-btn"
+          id="m-brand-toggle-btn"
+          onclick="toggleBrandList()"
+        >
+          Show brand list (<span id="m-brand-count">…</span>)
+        </button>
+
+        <!-- Collapsible panel -->
+        <div id="brand-list-panel" class="hidden">
+          <div class="m-search-wrap">
+            <input type="search" id="m-search" placeholder="🔍 Search brand…" oninput="filterBrands(this.value)" />
+          </div>
+          <div id="mobile-brand-cards" class="brand-list-panel">
+            <div class="empty-state"><div class="btn-spinner" style="width:36px;height:36px;border-width:3px;margin:0 auto 12px;"></div><p>Loading brands…</p></div>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /mobile-brand-list-view -->
 
     <!-- Detail form view (opens on card tap) -->
     <div id="mobile-detail-view" class="hidden">
@@ -138,22 +157,30 @@
 
   </div><!-- /mobile-stock-view -->
 
+  <!-- Sticky Bottom Bar (mobile stock) -->
+  <div class="bottom-bar mobile-only" id="mobile-stock-bottom" style="display:none;">
+    <button
+      class="btn btn-primary"
+      id="m-generate-btn"
+      onclick="mobileGenerate()"
+    >
+      ⬇️ Generate Today's Excel
+    </button>
+  </div>
+
   <!-- ══════════════════════════════════════════════════════════════ -->
   <!--  MOBILE VIEW: VERIFY TWO DAYS                                  -->
   <!-- ══════════════════════════════════════════════════════════════ -->
   <div id="mobile-verify-view" class="mobile-only mobile-view hidden">
 
     <!-- Upload form -->
-    <div class="card" id="m-verify-form-card">
-      <div class="card-header">
-        <div class="card-icon">🔍</div>
-        <div>
-          <div class="card-title">Verify Two Days</div>
-          <div class="card-subtitle">Checks yesterday's C/B vs today's O.B. for every brand</div>
-        </div>
+    <section class="m-section">
+      <div class="m-section-header">
+        <h2>🔍 Verify Two Days</h2>
       </div>
+      <p class="m-sub-text">Checks yesterday's C/B vs today's O.B. for every brand</p>
 
-      <div class="mobile-field-group">
+      <div class="mobile-field-group" style="margin-top:10px;">
         <label for="m-y-date">📅 Yesterday's Date</label>
         <input type="date" id="m-y-date" />
       </div>
@@ -177,16 +204,19 @@
           <strong id="m-t-label">Tap to select file</strong>
         </label>
       </div>
-
-      <button class="btn btn-verify" id="m-verify-btn" disabled onclick="mobileRunVerify()">
-        🔍 Run Verification
-      </button>
-    </div>
+    </section>
 
     <!-- Results -->
     <div id="mobile-verify-results"></div>
 
   </div><!-- /mobile-verify-view -->
+
+  <!-- Sticky Bottom Bar (mobile verify) -->
+  <div class="bottom-bar mobile-only" id="mobile-verify-bottom" style="display:none;">
+    <button class="btn btn-verify" id="m-verify-btn" disabled onclick="mobileRunVerify()">
+      🔍 Run Verification
+    </button>
+  </div>
 
   <!-- ══════════════════════════════════════════════════════════════ -->
   <!--  DESKTOP PAGE 1                                                -->

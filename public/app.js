@@ -64,9 +64,11 @@ window.switchTab = switchTab;
 
 // Mobile nav switching
 function mobileNavSwitch(view) {
-  // Buttons
-  document.querySelectorAll(".mobile-nav-btn").forEach(b => b.classList.remove("active"));
-  document.getElementById(`mn-${view}`).classList.add("active");
+  // Toggle segmented pills
+  document.querySelectorAll(".mode-btn").forEach(b => b.classList.remove("active"));
+  const activeBtn = document.getElementById(`mn-${view}`);
+  if (activeBtn) activeBtn.classList.add("active");
+
   // Views
   document.querySelectorAll(".mobile-view").forEach(v => {
     v.classList.remove("active");
@@ -74,6 +76,12 @@ function mobileNavSwitch(view) {
   });
   const target = document.getElementById(`mobile-${view}-view`);
   if (target) { target.classList.remove("hidden"); target.classList.add("active"); }
+
+  // Show/hide the correct sticky bottom bar
+  const stockBar  = document.getElementById("mobile-stock-bottom");
+  const verifyBar = document.getElementById("mobile-verify-bottom");
+  if (stockBar)  stockBar.style.display  = view === "stock"  ? "" : "none";
+  if (verifyBar) verifyBar.style.display = view === "verify" ? "" : "none";
 }
 window.mobileNavSwitch = mobileNavSwitch;
 
@@ -98,7 +106,6 @@ if (generateForm) {
     try {
       await downloadExcel({ date, rows, preloadBrands });
       showToast(`✨ Sheet for ${date} downloaded!`, "success", 5000);
-      // Non-blocking Drive upload
       driveUpload({ date, rows, preloadBrands });
     } catch (err) {
       showToast(`Error: ${err.message}`, "error", 6000);
@@ -236,19 +243,55 @@ function renderDesktopVerifyResults({ summary, previewRows, downloadId }, todayD
 }
 
 // ═══════════════════════════════════════════════════════════════════
+//  MOBILE STOCK – Brand List Collapse Toggle
+// ═══════════════════════════════════════════════════════════════════
+
+let brandListVisible = false;
+
+function toggleBrandList() {
+  brandListVisible = !brandListVisible;
+  const panel = document.getElementById("brand-list-panel");
+  const btn   = document.getElementById("m-brand-toggle-btn");
+  if (!panel || !btn) return;
+  if (brandListVisible) {
+    panel.classList.remove("hidden");
+    btn.textContent = "Hide brand list";
+    // Focus search for convenience
+    const search = document.getElementById("m-search");
+    if (search) setTimeout(() => search.focus(), 100);
+  } else {
+    panel.classList.add("hidden");
+    updateBrandToggleLabel();
+  }
+}
+window.toggleBrandList = toggleBrandList;
+
+function updateBrandToggleLabel() {
+  const btn = document.getElementById("m-brand-toggle-btn");
+  if (!btn) return;
+  const countSpan = document.getElementById("m-brand-count");
+  const n = countSpan ? countSpan.textContent : allBrands.length;
+  if (!brandListVisible) {
+    btn.innerHTML = `Show brand list (<span id="m-brand-count">${allBrands.length}</span>)`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
 //  MOBILE STOCK – Data Model + Brand List
 // ═══════════════════════════════════════════════════════════════════
 
-// In-memory stock model: Map<"BRAND|SIZE", MobileStockRow>
 const stockModel = new Map();
-let   allBrands  = [];     // full flat list from /api/brands
-let   currentBrandIdx = 0; // for "Save & Next" navigation
+let   allBrands  = [];
+let   currentBrandIdx = 0;
 
-// Load brands from backend
 async function loadBrands() {
   try {
     const res  = await fetch("/api/brands");
     allBrands  = await res.json();
+    // Update brand count in toggle button
+    const countSpan = document.getElementById("m-brand-count");
+    if (countSpan) countSpan.textContent = allBrands.length;
+    // Render into the (hidden) panel — renders invisibly until opened
     renderBrandCards(allBrands);
   } catch (e) {
     const cont = document.getElementById("mobile-brand-cards");
@@ -292,6 +335,11 @@ function renderBrandCards(list) {
 function updateFilledCount() {
   const el = document.getElementById("m-filled-count");
   if (el) el.textContent = `${stockModel.size} filled`;
+  // Keep toggle button label in sync
+  if (!brandListVisible) {
+    const btn = document.getElementById("m-brand-toggle-btn");
+    if (btn) btn.innerHTML = `Show brand list (<span id="m-brand-count">${allBrands.length}</span>)`;
+  }
 }
 
 // Search / filter
@@ -325,6 +373,9 @@ function openMobileDetail(idx) {
   // Switch view
   document.getElementById("mobile-brand-list-view").classList.add("hidden");
   document.getElementById("mobile-detail-view").classList.remove("hidden");
+  // Hide stock bottom bar in detail view
+  const stockBar = document.getElementById("mobile-stock-bottom");
+  if (stockBar) stockBar.style.display = "none";
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 window.openMobileDetail = openMobileDetail;
@@ -332,6 +383,9 @@ window.openMobileDetail = openMobileDetail;
 function closeMobileDetail() {
   document.getElementById("mobile-detail-view").classList.add("hidden");
   document.getElementById("mobile-brand-list-view").classList.remove("hidden");
+  // Re-show stock bottom bar
+  const stockBar = document.getElementById("mobile-stock-bottom");
+  if (stockBar) stockBar.style.display = "";
   // Re-render to reflect saved state
   const query = document.getElementById("m-search")?.value || "";
   filterBrands(query);
@@ -383,7 +437,6 @@ window.mobileSave = mobileSave;
 
 function mobileSaveNext() {
   mobileSaveRow();
-  // Move to next brand
   const next = currentBrandIdx + 1;
   if (next < allBrands.length) {
     openMobileDetail(next);
@@ -394,7 +447,7 @@ function mobileSaveNext() {
 }
 window.mobileSaveNext = mobileSaveNext;
 
-// Mobile generate & download
+// Mobile generate & download (called from sticky bottom bar)
 async function mobileGenerate() {
   const date          = document.getElementById("m-date")?.value?.trim();
   const preloadBrands = document.getElementById("m-preload")?.checked ?? true;
@@ -402,11 +455,12 @@ async function mobileGenerate() {
   if (!date) { showToast("Please select a date first.", "error"); return; }
 
   const btn = document.getElementById("m-generate-btn");
-  btn.disabled = true;
-  btn.textContent = "⏳ Generating…";
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<div class="btn-spinner"></div><span>Generating…</span>`;
+  }
 
   try {
-    // Build rowData from stock model
     const rowData = Array.from(stockModel.values()).map(r => ({
       brand: r.brand, size: r.size,
       opening: r.opening, received: r.received, closing: r.closing, rate: r.rate,
@@ -414,13 +468,14 @@ async function mobileGenerate() {
     const rdPayload = rowData.length > 0 ? rowData : null;
     await downloadExcel({ date, rows: 200, preloadBrands, rowData: rdPayload });
     showToast(`✨ Sheet for ${date} downloaded!`, "success", 5000);
-    // Non-blocking Drive upload
     driveUpload({ date, rows: 200, preloadBrands, rowData: rdPayload });
   } catch (err) {
     showToast(`Error: ${err.message}`, "error", 6000);
   } finally {
-    btn.disabled = false;
-    btn.textContent = "⬇️ Download";
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `⬇️ Generate Today's Excel`;
+    }
   }
 }
 window.mobileGenerate = mobileGenerate;
@@ -430,7 +485,7 @@ window.mobileGenerate = mobileGenerate;
 // ═══════════════════════════════════════════════════════════════════
 
 let mobYFile = null, mobTFile = null;
-let mobVerifyData = null;  // for filter re-render
+let mobVerifyData = null;
 let mobActiveFilter = "all";
 
 document.getElementById("m-y-file")?.addEventListener("change", function () {
@@ -459,8 +514,10 @@ function updateMobVerifyBtn() {
 async function mobileRunVerify() {
   if (!mobYFile || !mobTFile) return;
   const btn = document.getElementById("m-verify-btn");
-  btn.disabled  = true;
-  btn.innerHTML = `<div class="btn-spinner"></div><span>Verifying…</span>`;
+  if (btn) {
+    btn.disabled  = true;
+    btn.innerHTML = `<div class="btn-spinner"></div><span>Verifying…</span>`;
+  }
 
   const resultsDiv = document.getElementById("mobile-verify-results");
   resultsDiv.innerHTML = `<div class="empty-state"><div class="btn-spinner" style="width:36px;height:36px;border-width:3px;margin:0 auto 12px;"></div><p>Comparing sheets…</p></div>`;
@@ -480,15 +537,36 @@ async function mobileRunVerify() {
     resultsDiv.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p style="color:#da3633;">${esc(err.message)}</p></div>`;
     showToast(`Error: ${err.message}`, "error", 6000);
   } finally {
-    btn.disabled  = false;
-    btn.innerHTML = `🔍 Run Verification`;
+    if (btn) {
+      btn.disabled  = false;
+      btn.innerHTML = `🔍 Run Verification`;
+    }
   }
 }
 window.mobileRunVerify = mobileRunVerify;
 
+// Android-safe download helper — uses a programmatic <a> click so
+// Android's download manager picks it up instead of failing on blob: URLs
+function handleMobDownload(downloadId, todayDate) {
+  const a = document.createElement("a");
+  a.href = `/api/download-verified/${downloadId}`;
+  a.download = `JaiDurga_Verified_${todayDate}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+window.handleMobDownload = handleMobDownload;
+
 function renderMobileVerifyResults({ summary, previewRows, downloadId }, todayDate) {
-  const issues = summary.mismatch_rows + summary.warning_rows;
   const div = document.getElementById("mobile-verify-results");
+
+  const statsBar = `
+    <div class="summary-grid" style="grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+      <div class="stat-card total"><div class="stat-value">${summary.total_rows}</div><div class="stat-label">Checked</div></div>
+      <div class="stat-card ok"   ><div class="stat-value">${summary.ok_rows}</div><div class="stat-label">OK</div></div>
+      <div class="stat-card mis"  ><div class="stat-value">${summary.mismatch_rows}</div><div class="stat-label">Mismatch</div></div>
+      <div class="stat-card warn" ><div class="stat-value">${summary.warning_rows}</div><div class="stat-label">Warning</div></div>
+    </div>`;
 
   const filterBar = `
     <div class="m-filter-bar">
@@ -497,22 +575,18 @@ function renderMobileVerifyResults({ summary, previewRows, downloadId }, todayDa
       <button class="m-filter-btn"        id="mf-warn" onclick="applyMobFilter('warn')">🟡 Warning (${summary.warning_rows})</button>
     </div>`;
 
-  const statsBar = `
-    <div class="summary-grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
-      <div class="stat-card total"><div class="stat-value">${summary.total_rows}</div><div class="stat-label">Checked</div></div>
-      <div class="stat-card ok"   ><div class="stat-value">${summary.ok_rows}</div><div class="stat-label">OK</div></div>
-      <div class="stat-card mis"  ><div class="stat-value">${summary.mismatch_rows}</div><div class="stat-label">Mismatch</div></div>
-      <div class="stat-card warn" ><div class="stat-value">${summary.warning_rows}</div><div class="stat-label">Warning</div></div>
-    </div>`;
-
-  div.innerHTML = `<div style="margin-top:14px;">${statsBar}${filterBar}<div class="verify-card-list" id="mob-card-list"></div>
-    <div class="m-download-bar">
-      <a class="btn-download" href="/api/download-verified/${downloadId}" download="JaiDurga_Verified_${todayDate}.xlsx" style="width:100%;justify-content:center;">
-        ⬇️ Download Marked Sheet (.xlsx)
-      </a>
-      <p style="font-size:11px;color:var(--text-muted);margin-top:8px;">Red highlights, new columns: Prev CB / Status / AI Message · Valid 15 min</p>
-    </div>
-  </div>`;
+  div.innerHTML = `
+    <section class="m-section" style="margin-top:10px;">
+      ${statsBar}
+      ${filterBar}
+      <div class="verify-card-list" id="mob-card-list"></div>
+      <div class="m-download-bar">
+        <button class="btn-download-xl" onclick="handleMobDownload('${downloadId}', '${todayDate}')">
+          ⬇️ Download Verified Excel
+        </button>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:8px;">Red = mismatches · Columns J/K/L added · Valid 15 min</p>
+      </div>
+    </section>`;
 
   renderMobCards(previewRows, "all");
 }
@@ -544,9 +618,8 @@ function renderMobCards(rows, filter) {
 
 function applyMobFilter(filter) {
   mobActiveFilter = filter;
-  // Update button styles
-  document.getElementById("mf-all")?.classList.toggle("active", filter === "all");
-  document.getElementById("mf-mis")?.classList.toggle("active-red", filter === "mis");
+  document.getElementById("mf-all")?.classList.toggle("active",        filter === "all");
+  document.getElementById("mf-mis")?.classList.toggle("active-red",    filter === "mis");
   document.getElementById("mf-warn")?.classList.toggle("active-yellow", filter === "warn");
   document.getElementById("mf-all")?.classList.remove("active-red", "active-yellow");
   document.getElementById("mf-mis")?.classList.remove("active", "active-yellow");
@@ -560,7 +633,6 @@ window.applyMobFilter = applyMobFilter;
 //  GOOGLE DRIVE
 // ═══════════════════════════════════════════════════════════════════
 
-// Helper: show/hide drive widget panels
 function setDriveUI(connected, folderName) {
   const ids = [
     ["drive-disconnected",   "drive-connected"],
@@ -584,24 +656,19 @@ function setDriveUI(connected, folderName) {
   }
 }
 
-// On load: check Drive status
 async function checkDriveStatus() {
   try {
     const res  = await fetch("/api/drive/status");
     const data = await res.json();
     setDriveUI(data.connected, data.folderName);
-  } catch (_) {
-    // fail silently — Drive feature is optional
-  }
+  } catch (_) {}
 }
 
-// Handle ?drive=connected or ?drive=error redirect from OAuth callback
 (function handleDriveRedirect() {
   const params = new URLSearchParams(window.location.search);
   const drive  = params.get("drive");
   if (drive === "connected") {
     showToast("✅ Google Drive connected! Sheets will be saved automatically.", "success", 7000);
-    // Clean URL
     history.replaceState({}, "", window.location.pathname);
   } else if (drive === "error") {
     const reason = params.get("reason") || "unknown error";
@@ -610,7 +677,6 @@ async function checkDriveStatus() {
   }
 })();
 
-// Connect: redirect to Google consent
 async function connectDrive() {
   try {
     const res  = await fetch("/api/drive/auth-url");
@@ -626,7 +692,6 @@ async function connectDrive() {
 }
 window.connectDrive = connectDrive;
 
-// Disconnect
 async function disconnectDrive() {
   try {
     await fetch("/api/drive/disconnect", { method: "POST" });
@@ -638,7 +703,6 @@ async function disconnectDrive() {
 }
 window.disconnectDrive = disconnectDrive;
 
-// Upload to Drive (non-blocking — never blocks the download)
 async function driveUpload({ date, rows = 200, preloadBrands = true, rowData = null }) {
   try {
     const body = { date, rows, preloadBrands };
@@ -650,9 +714,8 @@ async function driveUpload({ date, rows = 200, preloadBrands = true, rowData = n
     });
     const data = await res.json();
     if (!res.ok) {
-      // Drive not connected → silently skip
       if (data.error?.includes("not connected")) return;
-      showToast(`⚠️ Couldn’t save to Google Drive. You can still download the file. (${data.error})`, "error", 7000);
+      showToast(`⚠️ Couldn't save to Google Drive. (${data.error})`, "error", 7000);
       return;
     }
     showToast(`☁️ Saved to Drive: ${data.folderName} / ${data.filename}`, "success", 5000);
@@ -665,7 +728,15 @@ async function driveUpload({ date, rows = 200, preloadBrands = true, rowData = n
 //  INIT
 // ═══════════════════════════════════════════════════════════════════
 
-// Load brand list for mobile immediately
+// Show the correct sticky bottom bar for the initial view (stock)
+(function initBottomBars() {
+  const stockBar  = document.getElementById("mobile-stock-bottom");
+  const verifyBar = document.getElementById("mobile-verify-bottom");
+  if (stockBar)  stockBar.style.display  = "";
+  if (verifyBar) verifyBar.style.display = "none";
+})();
+
+// Load brand list
 loadBrands();
-// Check Drive status on page load
+// Check Drive status
 checkDriveStatus();
