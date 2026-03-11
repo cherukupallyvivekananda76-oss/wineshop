@@ -61,6 +61,9 @@
           <div class="cb-label">Preload standard brand list</div>
         </div>
       </label>
+      <button class="btn btn-secondary" style="margin-top:14px;width:100%;" onclick="showBrandList()">
+        📋 Browse &amp; Fill Stock &nbsp;<span id="m-filled-count-main" style="font-size:12px;opacity:0.75;">0 filled</span>
+      </button>
     </section>
 
     <!-- ── Section 2: Google Drive ──────────────────────────────── -->
@@ -78,10 +81,8 @@
       </div>
     </section>
 
-    <!-- ── Brand list view (default) ────────────────────────────── -->
-    <div id="mobile-brand-list-view">
-
-      <!-- ── Section 3: Quick Action ──────────────────────────── -->
+    <!-- ── Brand list view (hidden by default, used internally) ── -->
+    <div id="mobile-brand-list-view" class="hidden">
       <section class="m-section">
         <div class="m-section-header">
           <h2>📋 Stock Entry</h2>
@@ -94,7 +95,6 @@
           <div class="empty-state"><div class="btn-spinner" style="width:36px;height:36px;border-width:3px;margin:0 auto 12px;"></div><p>Loading brands…</p></div>
         </div>
       </section>
-
     </div><!-- /mobile-brand-list-view -->
 
     <!-- Detail form view (opens on card tap) -->
@@ -144,13 +144,13 @@
   </div><!-- /mobile-stock-view -->
 
   <!-- Sticky Bottom Bar (mobile stock) -->
-  <div class="bottom-bar mobile-only" id="mobile-stock-bottom" style="display:none;">
+  <div class="bottom-bar mobile-only" id="mobile-stock-bottom">
     <button
       class="btn btn-primary"
       id="m-generate-btn"
       onclick="mobileGenerate()"
     >
-      ⬇️ Generate Today's Excel
+      📥 Generate Today's Excel
     </button>
   </div>
 

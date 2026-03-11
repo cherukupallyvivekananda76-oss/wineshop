@@ -246,35 +246,24 @@ function renderDesktopVerifyResults({ summary, previewRows, downloadId }, todayD
 //  MOBILE STOCK – Brand List Collapse Toggle
 // ═══════════════════════════════════════════════════════════════════
 
-let brandListVisible = false;
-
-function toggleBrandList() {
-  brandListVisible = !brandListVisible;
-  const panel = document.getElementById("brand-list-panel");
-  const btn   = document.getElementById("m-brand-toggle-btn");
-  if (!panel || !btn) return;
-  if (brandListVisible) {
-    panel.classList.remove("hidden");
-    btn.textContent = "Hide brand list";
+// Show the brand list section (called from the "Browse & Fill Stock" button)
+function showBrandList() {
+  const brandListView = document.getElementById("mobile-brand-list-view");
+  if (brandListView) {
+    brandListView.classList.remove("hidden");
     // Focus search for convenience
     const search = document.getElementById("m-search");
-    if (search) setTimeout(() => search.focus(), 100);
-  } else {
-    panel.classList.add("hidden");
-    updateBrandToggleLabel();
+    if (search) setTimeout(() => search.focus(), 150);
+    window.scrollTo({ top: brandListView.offsetTop - 10, behavior: "smooth" });
   }
 }
-window.toggleBrandList = toggleBrandList;
+window.showBrandList = showBrandList;
 
-function updateBrandToggleLabel() {
-  const btn = document.getElementById("m-brand-toggle-btn");
-  if (!btn) return;
-  const countSpan = document.getElementById("m-brand-count");
-  const n = countSpan ? countSpan.textContent : allBrands.length;
-  if (!brandListVisible) {
-    btn.innerHTML = `Show brand list (<span id="m-brand-count">${allBrands.length}</span>)`;
-  }
+function hideBrandList() {
+  const brandListView = document.getElementById("mobile-brand-list-view");
+  if (brandListView) brandListView.classList.add("hidden");
 }
+window.hideBrandList = hideBrandList;
 
 // ═══════════════════════════════════════════════════════════════════
 //  MOBILE STOCK – Data Model + Brand List
@@ -333,13 +322,13 @@ function renderBrandCards(list) {
 }
 
 function updateFilledCount() {
+  const count = stockModel.size;
+  // Inside brand list
   const el = document.getElementById("m-filled-count");
-  if (el) el.textContent = `${stockModel.size} filled`;
-  // Keep toggle button label in sync
-  if (!brandListVisible) {
-    const btn = document.getElementById("m-brand-toggle-btn");
-    if (btn) btn.innerHTML = `Show brand list (<span id="m-brand-count">${allBrands.length}</span>)`;
-  }
+  if (el) el.textContent = `${count} filled`;
+  // Badge on the main screen button
+  const elMain = document.getElementById("m-filled-count-main");
+  if (elMain) elMain.textContent = count > 0 ? `${count} filled` : "0 filled";
 }
 
 // Search / filter
@@ -382,6 +371,7 @@ window.openMobileDetail = openMobileDetail;
 
 function closeMobileDetail() {
   document.getElementById("mobile-detail-view").classList.add("hidden");
+  // Go back to brand list (keep it visible since user opened it)
   document.getElementById("mobile-brand-list-view").classList.remove("hidden");
   // Re-show stock bottom bar
   const stockBar = document.getElementById("mobile-stock-bottom");
