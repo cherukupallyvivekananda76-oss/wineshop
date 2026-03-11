@@ -718,13 +718,15 @@ async function driveUpload({ date, rows = 200, preloadBrands = true, rowData = n
 //  INIT
 // ═══════════════════════════════════════════════════════════════════
 
-// Show the correct sticky bottom bar for the initial view (stock)
-(function initBottomBars() {
-  const stockBar  = document.getElementById("mobile-stock-bottom");
+// Initialise mobile view state (also runs after OAuth redirect back to /)
+// mobileNavSwitch handles: active view, hidden view, bottom bars, nav pills
+if (window.innerWidth < 768) {
+  mobileNavSwitch("stock");
+} else {
+  // Desktop: just ensure verify bottom bar is hidden
   const verifyBar = document.getElementById("mobile-verify-bottom");
-  if (stockBar)  stockBar.style.display  = "";
   if (verifyBar) verifyBar.style.display = "none";
-})();
+}
 
 // Load brand list
 loadBrands();
