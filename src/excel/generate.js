@@ -323,6 +323,65 @@ function addCashSummaryBlock(ws, totalSalesRow, totalExpenseRow) {
     );
 }
 
+// ─── Sheet protection ─────────────────────────────────────────────────────────
+
+/**
+ * Lock Brand Name (col A) and Size (col B) for all stock data rows so staff
+ * cannot accidentally overwrite the master brand/size list.
+ * All other columns (C–I) and every row below the stock table stay UNLOCKED.
+ *
+ * Strategy (ExcelJS):
+ *   1) Unlock every cell  → default state: everything editable
+ *   2) Re-lock header row → nobody should change column headers
+ *   3) Re-lock col A + B  for data rows 2..DATA_END_ROW  (Brand + Size only)
+ *   4) Call worksheet.protect() so locked cells are actually enforced
+ *
+ * @param {ExcelJS.Worksheet} ws
+ * @param {number} dataEndRow  Last row of the stock table (inclusive)
+ */
+async function applySheetProtection(ws, dataEndRow) {
+    const totalSheetRows = ws.lastRow.number;
+    const colCount       = ws.columnCount || 9; // at least A-I
+
+    // ── Step 1: Unlock every cell in the entire sheet ────────────────────────
+    for (let r = 1; r <= totalSheetRows; r++) {
+        const row = ws.getRow(r);
+        for (let c = 1; c <= colCount; c++) {
+            row.getCell(c).protection = { locked: false };
+        }
+        row.commit();
+    }
+
+    // ── Step 2: Lock the header row (row 1) – all columns ────────────────────
+    {
+        const hdr = ws.getRow(1);
+        for (let c = 1; c <= colCount; c++) {
+            hdr.getCell(c).protection = { locked: true };
+        }
+        hdr.commit();
+    }
+
+    // ── Step 3: Lock col A (Brand Name) and col B (Size) in stock data rows ──
+    //    Rows 2 → dataEndRow are the stock table.
+    //    Summary rows beyond dataEndRow are intentionally left UNLOCKED so
+    //    staff can fill in expense names (col A) and amounts (col B).
+    for (let r = 2; r <= dataEndRow; r++) {
+        const row = ws.getRow(r);
+        row.getCell("A").protection = { locked: true };  // Brand Name – locked
+        row.getCell("B").protection = { locked: true };  // Size       – locked
+        // C D E F G H I remain { locked: false } from Step 1
+        row.commit();
+    }
+
+    // ── Step 4: Protect the sheet with a password ────────────────────────────
+    //    selectLockedCells:true   → staff CAN select locked cells (to read them)
+    //    selectUnlockedCells:true → staff CAN click into & edit unlocked cells
+    await ws.protect("JaiDurga2026", {
+        selectLockedCells:   true,
+        selectUnlockedCells: true,
+    });
+}
+
 // ─── Main exported function ───────────────────────────────────────────────────
 
 /**
@@ -405,6 +464,9 @@ async function generateExcel(date, rows, preloadBrands, rowData) {
 
     // 8. Cash Summary block  (gap + header + 5 rows)
     addCashSummaryBlock(worksheet, totalSalesRow, totalExpenseRow);
+
+    // 9. Sheet protection — lock Brand Name (col A) & Size (col B) only
+    await applySheetProtection(worksheet, DATA_END_ROW);
 
     // Return as buffer
     const buffer = await workbook.xlsx.writeBuffer();
