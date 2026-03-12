@@ -101,12 +101,16 @@ router.get("/drive/status", (_req, res) => {
 });
 
 // GET /api/drive/auth-url — returns OAuth consent URL
-router.get("/drive/auth-url", (_req, res) => {
+router.get("/drive/auth-url", (req, res) => {
     try {
         if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
             return res.status(503).json({ error: "Google Drive is not configured. Please add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to your .env file." });
         }
-        res.json({ url: drive.getAuthUrl() });
+        // Build redirect URI dynamically from the incoming request
+        const proto       = req.headers["x-forwarded-proto"] || req.protocol || "http";
+        const host        = req.headers["x-forwarded-host"]  || req.headers.host;
+        const redirectUri = `${proto}://${host}/api/drive/callback`;
+        res.json({ url: drive.getAuthUrl(redirectUri) });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -118,7 +122,11 @@ router.get("/drive/callback", async (req, res) => {
     if (error) return res.redirect("/?drive=error&reason=" + encodeURIComponent(error));
     if (!code)  return res.redirect("/?drive=error&reason=no_code");
     try {
-        await drive.handleCallback(code);
+        // Rebuild the same redirect URI used in auth-url
+        const proto       = req.headers["x-forwarded-proto"] || req.protocol || "http";
+        const host        = req.headers["x-forwarded-host"]  || req.headers.host;
+        const redirectUri = `${proto}://${host}/api/drive/callback`;
+        await drive.handleCallback(code, redirectUri);
         res.redirect("/?drive=connected");
     } catch (err) {
         console.error("[drive/callback]", err);

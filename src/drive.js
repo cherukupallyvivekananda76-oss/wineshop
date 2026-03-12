@@ -25,11 +25,14 @@ const SCOPES      = ["https://www.googleapis.com/auth/drive.file"];
 const IS_VERCEL = process.env.VERCEL === "1";
 
 // ─── OAuth2 client factory ────────────────────────────────────────────────────
-function makeClient() {
+function makeClient(redirectUri) {
+    const uri = redirectUri
+        || process.env.GOOGLE_REDIRECT_URI
+        || "http://localhost:3000/api/drive/callback";
     return new google.auth.OAuth2(
         process.env.GOOGLE_CLIENT_ID,
         process.env.GOOGLE_CLIENT_SECRET,
-        process.env.GOOGLE_REDIRECT_URI || "http://localhost:3000/api/drive/callback"
+        uri
     );
 }
 
@@ -78,8 +81,8 @@ function deleteTokens() {
 /**
  * Generate the Google OAuth consent URL.
  */
-function getAuthUrl() {
-    const client = makeClient();
+function getAuthUrl(redirectUri) {
+    const client = makeClient(redirectUri);
     return client.generateAuthUrl({
         access_type: "offline",
         prompt:      "consent",
@@ -93,8 +96,8 @@ function getAuthUrl() {
  * On Vercel, prints the tokens to console so you can copy them to env vars.
  * @param {string} code
  */
-async function handleCallback(code) {
-    const client = makeClient();
+async function handleCallback(code, redirectUri) {
+    const client = makeClient(redirectUri);
     const { tokens } = await client.getToken(code);
     client.setCredentials(tokens);
 
@@ -131,6 +134,7 @@ function isConnected() {
 function getAuthenticatedClient() {
     const tokens = loadTokens();
     if (!tokens) throw new Error("Google Drive not connected.");
+    // No redirectUri needed for API calls — just omit it
     const client = makeClient();
     client.setCredentials(tokens);
     // Persist refreshed tokens locally (no-op on Vercel)

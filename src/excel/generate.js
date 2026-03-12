@@ -60,7 +60,7 @@ function styleHeader(row) {
         cell.alignment = { vertical: "middle", horizontal: "center", wrapText: false };
         cell.border = thinBorder();
     });
-    row.height = 22;
+    row.height = 20;
 }
 
 /**
