@@ -32,7 +32,7 @@ router.post("/generate-excel", async (req, res) => {
         if (!date || typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
             return res.status(400).json({ error: "date is required and must be in YYYY-MM-DD format." });
         }
-        const numRows = parseInt(rows, 10) || 200;
+        const numRows = parseInt(rows, 10) || 100;
         if (numRows < 1 || numRows > 2000) {
             return res.status(400).json({ error: "rows must be between 1 and 2000." });
         }
@@ -137,7 +137,7 @@ router.post("/drive/upload", async (req, res) => {
         if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
             return res.status(400).json({ error: "date is required in YYYY-MM-DD format." });
         }
-        const numRows   = parseInt(rows, 10) || 200;
+        const numRows   = parseInt(rows, 10) || 100;
         const doPreload = preloadBrands === true || preloadBrands === "true";
         let rowData = null;
         if (req.body.rowData) {

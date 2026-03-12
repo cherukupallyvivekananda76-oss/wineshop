@@ -96,7 +96,7 @@ if (generateForm) {
   generateForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const date          = document.getElementById("date").value.trim();
-    const rows          = parseInt(document.getElementById("rows").value, 10) || 200;
+    const rows          = parseInt(document.getElementById("rows").value, 10) || 100;
     const preloadBrands = document.getElementById("preload-brands").checked;
 
     if (!date) { showToast("Please select a date.", "error"); return; }
@@ -116,7 +116,7 @@ if (generateForm) {
   });
 }
 
-async function downloadExcel({ date, rows = 200, preloadBrands = true, rowData = null }) {
+async function downloadExcel({ date, rows = 100, preloadBrands = true, rowData = null }) {
   const body = { date, rows, preloadBrands };
   if (rowData && rowData.length > 0) body.rowData = rowData;
 
@@ -456,9 +456,9 @@ async function mobileGenerate() {
       opening: r.opening, received: r.received, closing: r.closing, rate: r.rate,
     }));
     const rdPayload = rowData.length > 0 ? rowData : null;
-    await downloadExcel({ date, rows: 200, preloadBrands, rowData: rdPayload });
+    await downloadExcel({ date, rows: 100, preloadBrands, rowData: rdPayload });
     showToast(`✨ Sheet for ${date} downloaded!`, "success", 5000);
-    driveUpload({ date, rows: 200, preloadBrands, rowData: rdPayload });
+    driveUpload({ date, rows: 100, preloadBrands, rowData: rdPayload });
   } catch (err) {
     showToast(`Error: ${err.message}`, "error", 6000);
   } finally {
@@ -693,7 +693,7 @@ async function disconnectDrive() {
 }
 window.disconnectDrive = disconnectDrive;
 
-async function driveUpload({ date, rows = 200, preloadBrands = true, rowData = null }) {
+async function driveUpload({ date, rows = 100, preloadBrands = true, rowData = null }) {
   try {
     const body = { date, rows, preloadBrands };
     if (rowData) body.rowData = rowData;
