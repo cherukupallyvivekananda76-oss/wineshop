@@ -3,22 +3,28 @@
 /**
  * Google Drive service for Jai Durga Wine Shop.
  *
- * Single-user model: tokens stored in data/drive-tokens.json.
- * Scope: drive.file (app can only access files it created — minimal permission).
+ * Token storage strategy:
+ *  - PRODUCTION (Vercel): tokens are read from environment variables
+ *      GOOGLE_REFRESH_TOKEN, GOOGLE_ACCESS_TOKEN, GOOGLE_FOLDER_ID
+ *    (these are set once in the Vercel dashboard after a first local auth)
+ *  - LOCAL DEV: tokens are stored in data/drive-tokens.json (as before)
  */
 
-const { google }  = require("googleapis");
-const fs          = require("fs");
-const path        = require("path");
+const { google } = require("googleapis");
+const fs         = require("fs");
+const path       = require("path");
 
-const TOKENS_FILE  = path.join(__dirname, "..", "data", "drive-tokens.json");
-const FOLDER_NAME  = "Wine Stock Sheets";
-const MIME_XLSX    = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-const MIME_FOLDER  = "application/vnd.google-apps.folder";
-const SCOPES       = ["https://www.googleapis.com/auth/drive.file"];
+const TOKENS_FILE = path.join(__dirname, "..", "data", "drive-tokens.json");
+const FOLDER_NAME = "Wine Stock Sheets";
+const MIME_XLSX   = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const MIME_FOLDER = "application/vnd.google-apps.folder";
+const SCOPES      = ["https://www.googleapis.com/auth/drive.file"];
+
+// ─── Detect environment ───────────────────────────────────────────────────────
+// On Vercel, VERCEL env var is always "1"
+const IS_VERCEL = process.env.VERCEL === "1";
 
 // ─── OAuth2 client factory ────────────────────────────────────────────────────
-
 function makeClient() {
     return new google.auth.OAuth2(
         process.env.GOOGLE_CLIENT_ID,
@@ -29,7 +35,19 @@ function makeClient() {
 
 // ─── Token storage helpers ────────────────────────────────────────────────────
 
+/**
+ * Load tokens from env vars (Vercel) or from local file (dev).
+ */
 function loadTokens() {
+    if (IS_VERCEL) {
+        // Read from Vercel environment variables
+        const refresh_token = process.env.GOOGLE_REFRESH_TOKEN;
+        const access_token  = process.env.GOOGLE_ACCESS_TOKEN;
+        const folderId      = process.env.GOOGLE_FOLDER_ID;
+        if (!refresh_token) return null;
+        return { refresh_token, access_token, folderId };
+    }
+    // Local dev: read from file
     try {
         if (!fs.existsSync(TOKENS_FILE)) return null;
         const raw = fs.readFileSync(TOKENS_FILE, "utf8");
@@ -39,13 +57,19 @@ function loadTokens() {
     }
 }
 
+/**
+ * Save tokens — only meaningful in local dev.
+ * On Vercel, we can't write to disk, so this is a no-op.
+ */
 function saveTokens(data) {
+    if (IS_VERCEL) return; // No-op: tokens live in env vars on Vercel
     const dir = path.dirname(TOKENS_FILE);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(TOKENS_FILE, JSON.stringify(data, null, 2), "utf8");
 }
 
 function deleteTokens() {
+    if (IS_VERCEL) return; // Can't delete env vars at runtime
     try { if (fs.existsSync(TOKENS_FILE)) fs.unlinkSync(TOKENS_FILE); } catch (_) {}
 }
 
@@ -66,6 +90,7 @@ function getAuthUrl() {
 /**
  * Exchange auth code for tokens, then save.
  * Also creates the Drive folder immediately.
+ * On Vercel, prints the tokens to console so you can copy them to env vars.
  * @param {string} code
  */
 async function handleCallback(code) {
@@ -76,12 +101,23 @@ async function handleCallback(code) {
     // Create or find folder right away
     const folderId = await findOrCreateFolder(client);
 
-    saveTokens({ ...tokens, folderId });
+    const tokenData = { ...tokens, folderId };
+    saveTokens(tokenData); // saves locally; no-op on Vercel
+
+    if (IS_VERCEL) {
+        // Log so the developer can copy these to Vercel env vars
+        console.log("=== VERCEL: Copy these to your Vercel Environment Variables ===");
+        console.log("GOOGLE_REFRESH_TOKEN =", tokens.refresh_token);
+        console.log("GOOGLE_ACCESS_TOKEN  =", tokens.access_token);
+        console.log("GOOGLE_FOLDER_ID     =", folderId);
+        console.log("================================================================");
+    }
+
     return { folderId };
 }
 
 /**
- * Returns true if drive-tokens.json exists and has tokens.
+ * Returns true if tokens are available (env vars or local file).
  */
 function isConnected() {
     const t = loadTokens();
@@ -97,7 +133,7 @@ function getAuthenticatedClient() {
     if (!tokens) throw new Error("Google Drive not connected.");
     const client = makeClient();
     client.setCredentials(tokens);
-    // Persist refreshed tokens automatically
+    // Persist refreshed tokens locally (no-op on Vercel)
     client.on("tokens", (refreshed) => {
         const current = loadTokens() || {};
         saveTokens({ ...current, ...refreshed });
@@ -113,7 +149,6 @@ function getAuthenticatedClient() {
 async function findOrCreateFolder(client) {
     const drive = google.drive({ version: "v3", auth: client });
 
-    // Search for existing folder owned by this app
     const res = await drive.files.list({
         q: `mimeType='${MIME_FOLDER}' and name='${FOLDER_NAME}' and trashed=false`,
         fields: "files(id, name)",
@@ -124,11 +159,10 @@ async function findOrCreateFolder(client) {
         return res.data.files[0].id;
     }
 
-    // Create it
     const folder = await drive.files.create({
         requestBody: {
-            name:     FOLDER_NAME,
-            mimeType: MIME_FOLDER,
+            name:        FOLDER_NAME,
+            mimeType:    MIME_FOLDER,
             description: "Auto-generated by Jai Durga Wine Shop Daily Stock Manager",
         },
         fields: "id",
@@ -138,9 +172,6 @@ async function findOrCreateFolder(client) {
 
 /**
  * Upload an xlsx buffer to the Drive folder.
- * @param {string} filename   e.g. "JaiDurga_Stock_2026-03-09.xlsx"
- * @param {Buffer} buffer
- * @returns {{ id: string, name: string, folderName: string }}
  */
 async function uploadFile(filename, buffer) {
     const tokens = loadTokens();
@@ -149,7 +180,6 @@ async function uploadFile(filename, buffer) {
     const client = getAuthenticatedClient();
     const drive  = google.drive({ version: "v3", auth: client });
 
-    // Ensure folder still exists (handles revoked then reconnected case)
     let folderId = tokens.folderId;
     if (!folderId) {
         folderId = await findOrCreateFolder(client);
