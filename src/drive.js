@@ -44,9 +44,9 @@ function makeClient(redirectUri) {
 function loadTokens() {
     if (IS_VERCEL) {
         // Read from Vercel environment variables
-        const refresh_token = process.env.GOOGLE_REFRESH_TOKEN;
-        const access_token  = process.env.GOOGLE_ACCESS_TOKEN;
-        const folderId      = process.env.GOOGLE_FOLDER_ID;
+        const refresh_token = (process.env.GOOGLE_REFRESH_TOKEN || "").trim();
+        const access_token  = (process.env.GOOGLE_ACCESS_TOKEN || "").trim();
+        const folderId      = (process.env.GOOGLE_FOLDER_ID || "").trim();
         if (!refresh_token) return null;
         return { refresh_token, access_token, folderId };
     }
@@ -182,6 +182,12 @@ async function uploadFile(filename, buffer) {
     if (!tokens) throw new Error("Google Drive not connected.");
 
     const client = getAuthenticatedClient();
+    
+    // Explicitly fetch an access token to force auto-refresh BEFORE we begin the stream.
+    // This circumvents a bug in gaxios where it fails to retry a 401 Unauthorized 
+    // response if the request payload is an un-rewindable stream.
+    await client.getAccessToken();
+
     const drive  = google.drive({ version: "v3", auth: client });
 
     let folderId = tokens.folderId;
